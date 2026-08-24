@@ -18,11 +18,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # Добавили установку libgtk-3-dev и графических утилит, которые требует новый Flet
+      # Доставили mesa-utils для eglinfo, чтобы убрать ошибку драйвера
       - name: Install System Tools
         run: |
           sudo apt update
-          sudo apt install -y build-essential git zip unzip openjdk-17-jdk libgtk-3-dev libegl1-mesa-dev libgl1-mesa-dev
+          sudo apt install -y build-essential git zip unzip openjdk-17-jdk libgtk-3-dev libegl1-mesa-dev libgl1-mesa-dev mesa-utils
           pip install --upgrade pip
           pip install flet
 
@@ -30,9 +30,10 @@ jobs:
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
+      # Добавили флаг target, чтобы он собирал строго андроид и не лез в десктоп
       - name: Build Android APK
         run: |
-          yes | flet build apk
+          yes | flet build apk --target android
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
