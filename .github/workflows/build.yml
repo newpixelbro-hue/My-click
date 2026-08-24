@@ -1,0 +1,36 @@
+name: Build APK
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Buildozer and dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y openjdk-17-jdk build-essential ccache git libffi-dev libssl-dev libtool pkg-config zlib1g-dev python3-dev autoconf cmake
+          pip install buildozer cython
+
+      - name: Initialize Buildozer
+        run: |
+          buildozer init
+          # Автоматически меняем настройки под Flet
+          sed -i 's/requirements = python3,kivy/requirements = python3,flet/g' buildozer.spec
+          sed -i 's/package.domain = org.test/package.domain = org.pixel/g' buildozer.spec
+
+      - name: Build with Buildozer
+        run: buildozer android debug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pixel-Clicker-APK
+          path: bin/*.apk
+          
