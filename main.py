@@ -1,6 +1,7 @@
 import flet as ft
 import time
 import threading
+import os
 
 def main(page: ft.Page):
     page.title = "Pixel Clicker: Evolution"
@@ -10,18 +11,28 @@ def main(page: ft.Page):
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
-    # --- ЗАГРУЗКА ДАННЫХ ИЗ ПАМЯТИ ТЕЛЕФОНА ---
-    if not page.client_storage.contains_key("balance"):
-        page.client_storage.set("balance", 0)
-        page.client_storage.set("click_power", 1)
-        page.client_storage.set("p_income", 0)
-        page.client_storage.set("energy", 1000)
-        page.client_storage.set("last_bonus", 0)
+    # --- БРОНЕБОЙНОЕ СОХРАНЕНИЕ ЧЕРЕЗ ФАЙЛ (ЗАМЕНА CLIENT_STORAGE) ---
+    save_file = "save.txt"
 
-    balance = page.client_storage.get("balance")
-    click_power = page.client_storage.get("click_power")
-    p_income = page.client_storage.get("p_income")
-    energy = page.client_storage.get("energy")
+    def save_data(b, cp, pi, e, lb):
+        try:
+            with open(save_file, "w") as f:
+                f.write(f"{b},{cp},{pi},{e},{lb}")
+        except:
+            pass
+
+    def load_data():
+        if os.path.exists(save_file):
+            try:
+                with open(save_file, "r") as f:
+                    data = f.read().split(",")
+                    return int(data[0]), int(data[1]), int(data[2]), int(data[3]), int(data[4])
+            except:
+                return 0, 1, 0, 1000, 0
+        return 0, 1, 0, 1000, 0
+
+    # Загружаем циферки из памяти
+    balance, click_power, p_income, energy, last_bonus = load_data()
     max_energy = 1000
 
     multitap_cost = click_power * 150
@@ -46,8 +57,7 @@ def main(page: ft.Page):
         if energy >= click_power:
             balance += click_power
             energy -= click_power
-            page.client_storage.set("balance", balance)
-            page.client_storage.set("energy", energy)
+            save_data(balance, click_power, p_income, energy, last_bonus)
             
             balance_text.value = f"🪙 {balance:,} MOНET"
             energy_bar.value = energy / max_energy
@@ -55,7 +65,6 @@ def main(page: ft.Page):
             update_rank()
             page.update()
 
-    # Сделали кнопку стандартным круглымIconButton — это на 100% защищено от багов сборки
     tap_button = ft.IconButton(
         icon=ft.Icons.MONETIZATION_ON,
         icon_size=100,
@@ -83,8 +92,7 @@ def main(page: ft.Page):
             balance -= multitap_cost
             click_power += 1
             multitap_cost = click_power * 150
-            page.client_storage.set("balance", balance)
-            page.client_storage.set("click_power", click_power)
+            save_data(balance, click_power, p_income, energy, last_bonus)
             
             balance_text.value = f"🪙 {balance:,} MOНET"
             multitap_btn_text.value = f"Прокачать Клик (+1)\nЦена: {multitap_cost} 🪙"
@@ -96,8 +104,7 @@ def main(page: ft.Page):
             balance -= gpu_cost
             p_income += 2
             gpu_cost = (p_income + 1) * 200
-            page.client_storage.set("balance", balance)
-            page.client_storage.set("p_income", p_income)
+            save_data(balance, click_power, p_income, energy, last_bonus)
             
             balance_text.value = f"🪙 {balance:,} MOНET"
             income_text.value = f"⚡ Прибыль в сек: +{p_income}"
@@ -107,19 +114,9 @@ def main(page: ft.Page):
     tab_shop = ft.Column([
         ft.Text("🏢 УЛУЧШЕНИЯ И МАЙНИНГ", size=18, weight=ft.FontWeight.BOLD, color="cyan"),
         ft.Container(height=10),
-        ft.ElevatedButton(
-            content=multitap_btn_text,
-            width=280,
-            style=ft.ButtonStyle(padding=15),
-            on_click=buy_multitap
-        ),
+        ft.ElevatedButton(content=multitap_btn_text, width=280, style=ft.ButtonStyle(padding=15), on_click=buy_multitap),
         ft.Container(height=10),
-        ft.ElevatedButton(
-            content=gpu_btn_text,
-            width=280,
-            style=ft.ButtonStyle(padding=15),
-            on_click=buy_gpu
-        ),
+        ft.ElevatedButton(content=gpu_btn_text, width=280, style=ft.ButtonStyle(padding=15), on_click=buy_gpu),
     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
 
@@ -127,14 +124,13 @@ def main(page: ft.Page):
     casino_output = ft.Text("Испытай удачу в рулетке!", size=14, color="white", font_family="monospace")
 
     def claim_daily(e):
-        nonlocal balance
+        nonlocal balance, last_bonus
         current_time = int(time.time())
-        last_bonus = page.client_storage.get("last_bonus")
         
         if current_time - last_bonus >= 86400:
             balance += 5000
-            page.client_storage.set("balance", balance)
-            page.client_storage.set("last_bonus", current_time)
+            last_bonus = current_time
+            save_data(balance, click_power, p_income, energy, last_bonus)
             balance_text.value = f"🪙 {balance:,} MOНET"
             casino_output.value = "🎁 Ежедневный бонус +5,000 монет получен!"
         else:
@@ -158,7 +154,7 @@ def main(page: ft.Page):
             else:
                 casino_output.value = "😢 Слот-машина: Мимо... Попробуй еще раз (-200 🪙)"
                 
-            page.client_storage.set("balance", balance)
+            save_data(balance, click_power, p_income, energy, last_bonus)
             balance_text.value = f"🪙 {balance:,} MOНET"
         else:
             casino_output.value = "❌ Недостаточно монет для игры (нужно 200 🪙)"
@@ -204,10 +200,10 @@ def main(page: ft.Page):
             time.sleep(1)
             if p_income > 0:
                 balance += p_income
-                page.client_storage.set("balance", balance)
             if energy < max_energy:
                 energy = min(max_energy, energy + 3)
-                page.client_storage.set("energy", energy)
+            
+            save_data(balance, click_power, p_income, energy, last_bonus)
             
             try:
                 balance_text.value = f"🪙 {balance:,} MOНET"
@@ -237,4 +233,3 @@ def main(page: ft.Page):
     )
 
 ft.app(target=main)
-            
