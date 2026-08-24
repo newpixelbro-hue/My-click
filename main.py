@@ -1,35 +1,264 @@
 import flet as ft
+import time
+import threading
 
 def main(page: ft.Page):
-    page.title = "Pixel Clicker"
+    page.title = "Pixel Clicker: Evolution"
+    page.icon = "icongame.png"
+    page.theme_mode = ft.ThemeMode.DARK
+    page.padding = 10
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.theme_mode = ft.ThemeMode.DARK
 
-    score = 0
-    score_text = ft.Text(value="Очки: 0", size=40, weight=ft.FontWeight.BOLD, color="green")
+    # --- ЗАГРУЗКА ДАННЫХ ИЗ ПАМЯТИ ТЕЛЕФОНА ---
+    # Если запуск первый — создаем стартовый баланс
+    if not page.client_storage.contains_key("balance"):
+        page.client_storage.set("balance", 0)
+        page.client_storage.set("click_power", 1)
+        page.client_storage.set("p_income", 0)
+        page.client_storage.set("energy", 1000)
+        page.client_storage.set("last_bonus", 0)
 
-    def button_click(e):
-        nonlocal score
-        score += 1
-        score_text.value = f"Очки: {score}"
+    # Инициализация переменных из памяти
+    balance = page.client_storage.get("balance")
+    click_power = page.client_storage.get("click_power")
+    p_income = page.client_storage.get("p_income")
+    energy = page.client_storage.get("energy")
+    max_energy = 1000
+
+    # Цены на апгрейды
+    multitap_cost = click_power * 150
+    gpu_cost = (p_income + 1) * 200
+
+    # --- ВИДЖЕТЫ ИНТЕРФЕЙСА (ОБЩИЕ) ---
+    balance_text = ft.Text(value=f"🪙 {balance:,} MOНET", size=32, weight=ft.FontWeight.BOLD, color="amber")
+    income_text = ft.Text(value=f"⚡ Прибыль в сек: +{p_income}", size=14, color="cyan", font_family="monospace")
+    
+    # --- ЭКРАН 1: ГЛАВНАЯ (ТАПАЛКА) ---
+    rank_text = ft.Text(value="Ранг: Новичок с Пикселем", size=14, color="lightgreen", weight=ft.FontWeight.BOLD)
+    energy_bar = ft.ProgressBar(value=energy/max_energy, width=300, color="green", bgcolor="#333333")
+    energy_text = ft.Text(value=f"🔋 Энергия: {energy}/{max_energy}", size=12, color="green")
+
+    def update_rank():
+        if balance < 5000: rank_text.value = "Ранг: Новичок с Пикселем"
+        elif balance < 50000: rank_text.value = "Ранг: Продвинутый Хакер 💻"
+        else: rank_text.value = "Ранг: Крипто-Монарх 👑"
+
+    def coin_tap(e):
+        nonlocal balance, energy
+        if energy >= click_power:
+            balance += click_power
+            energy -= click_power
+            page.client_storage.set("balance", balance)
+            page.client_storage.set("energy", energy)
+            
+            balance_text.value = f"🪙 {balance:,} MOНET"
+            energy_bar.value = energy / max_energy
+            energy_text.value = f"🔋 Энергия: {energy}/{max_energy}"
+            update_rank()
+            page.update()
+
+    # Огромная красивая неоновая кнопка-монета
+    coin_button = ft.Container(
+        content=ft.Center(content=ft.Text("🪙", size=80)),
+        width=180,
+        height=180,
+        bgcolor="#222222",
+        shape=ft.BoxShape.CIRCLE,
+        border=ft.Border(
+            top=ft.BorderSide(3, "amber"),
+            bottom=ft.BorderSide(3, "amber"),
+            left=ft.BorderSide(3, "amber"),
+            right=ft.BorderSide(3, "amber")
+        ),
+        on_click=coin_button,
+        animate_scale=ft.Animation(100, ft.AnimationCurve.BOUNCE_OUT)
+    )
+
+    tab_main = ft.Column([
+        rank_text,
+        ft.Container(height=10),
+        coin_button,
+        ft.Container(height=20),
+        energy_text,
+        energy_bar,
+    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+
+
+    # --- ЭКРАН 2: МАГАЗИН (МАЙНИНГ) ---
+    multitap_btn_text = ft.Text(f"Прокачать Клик (+1)\nЦена: {multitap_cost} 🪙", size=12, color="white")
+    gpu_btn_text = ft.Text(f"Купить Процессор Tensor (+2/сек)\nЦена: {gpu_cost} 🪙", size=12, color="white")
+
+    def buy_multitap(e):
+        nonlocal balance, click_power, multitap_cost
+        if balance >= multitap_cost:
+            balance -= multitap_cost
+            click_power += 1
+            multitap_cost = click_power * 150
+            page.client_storage.set("balance", balance)
+            page.client_storage.set("click_power", click_power)
+            
+            balance_text.value = f"🪙 {balance:,} MOНET"
+            multitap_btn_text.value = f"Прокачать Клик (+1)\nЦена: {multitap_cost} 🪙"
+            page.update()
+
+    def buy_gpu(e):
+        nonlocal balance, p_income, gpu_cost
+        if balance >= gpu_cost:
+            balance -= gpu_cost
+            p_income += 2
+            gpu_cost = (p_income + 1) * 200
+            page.client_storage.set("balance", balance)
+            page.client_storage.set("p_income", p_income)
+            
+            balance_text.value = f"🪙 {balance:,} MOНET"
+            income_text.value = f"⚡ Прибыль в сек: +{p_income}"
+            gpu_btn_text.value = f"Купить Процессор Tensor (+2/сек)\nЦена: {gpu_cost} 🪙"
+            page.update()
+
+    tab_shop = ft.Column([
+        ft.Text("🏢 УЛУЧШЕНИЯ И МАЙНИНГ", size=18, weight=ft.FontWeight.BOLD, color="cyan"),
+        ft.Container(height=10),
+        ft.ElevatedButton(
+            content=multitap_btn_text,
+            width=280,
+            style=ft.ButtonStyle(padding=15),
+            on_click=buy_multitap
+        ),
+        ft.Container(height=10),
+        ft.ElevatedButton(
+            content=gpu_btn_text,
+            width=280,
+            style=ft.ButtonStyle(padding=15),
+            on_click=buy_gpu
+        ),
+    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+
+
+    # --- ЭКРАН 3: КАЗИНО И БОНУСЫ ---
+    casino_output = ft.Text("Испытай удачу в рулетке!", size=14, color="white", font_family="monospace")
+
+    def claim_daily(e):
+        nonlocal balance
+        current_time = int(time.time())
+        last_bonus = page.client_storage.get("last_bonus")
+        
+        # 86400 секунд = 24 часа
+        if current_time - last_bonus >= 86400:
+            balance += 5000
+            page.client_storage.set("balance", balance)
+            page.client_storage.set("last_bonus", current_time)
+            balance_text.value = f"🪙 {balance:,} MOНET"
+            casino_output.value = "🎁 Ежедневный бонус +5,000 монет получен!"
+        else:
+            left = 86400 - (current_time - last_bonus)
+            casino_output.value = f"❌ Бонус еще не готов! Подождите {left // 3600} ч."
         page.update()
 
-    # Исправленная кнопка для Android
-    click_button = ft.ElevatedButton(
-        content=ft.Text("ТАПАЙ МЕНЯ! 🪙", size=20, weight=ft.FontWeight.BOLD),
-        on_click=button_click,
-        style=ft.ButtonStyle(
-            shape=ft.CircleBorder(),
-            padding=30
-        )
+    def play_slots(e):
+        nonlocal balance
+        if balance >= 200:
+            balance -= 200
+            import random
+            result = random.choice(["WIN", "LOSE", "JACKPOT"])
+            
+            if result == "WIN":
+                balance += 500
+                casino_output.value = "🎰 Слот-машина: ВЫИГРЫШ! +500 монет! 🎉"
+            elif result == "JACKPOT":
+                balance += 5000
+                casino_output.value = "🔥 ДЖЕКПОТ!!! +5,000 монет! 🔥"
+            else:
+                casino_output.value = "😢 Слот-машина: Мимо... Попробуй еще раз (-200 🪙)"
+                
+            page.client_storage.set("balance", balance)
+            balance_text.value = f"🪙 {balance:,} MOНET"
+        else:
+            casino_output.value = "❌ Недостаточно монет для игры (нужно 200 🪙)"
+        page.update()
+
+    tab_casino = ft.Column([
+        ft.Text("🎁 ПРИЗЫ И АЗАРТ", size=18, weight=ft.FontWeight.BOLD, color="purple"),
+        ft.Container(height=10),
+        ft.ElevatedButton("Забрать Ежедневный Бонус (+5000 🪙) 📅", width=280, on_click=claim_daily),
+        ft.Container(height=10),
+        ft.ElevatedButton("Крутить Слот-Машину (Ставка: 200 🪙) 🎰", width=280, on_click=play_slots),
+        ft.Container(height=15),
+        ft.Container(content=casino_output, bgcolor="#222222", padding=15, border_radius=8, width=280)
+    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+
+
+    # --- СИСТЕМА НАВИГАЦИИ (UI ТАБЫ) ---
+    main_container = ft.Container(content=tab_main, padding=15)
+
+    def on_tab_change(e):
+        # Переключаем экраны в зависимости от выбранной шторки снизу
+        if e.control.selected_index == 0:
+            main_container.content = tab_main
+        elif e.control.selected_index == 1:
+            main_container.content = tab_shop
+        elif e.control.selected_index == 2:
+            main_container.content = tab_casino
+        page.update()
+
+    # Полноценная нижняя панель навигации
+    nav_bar = ft.NavigationBar(
+        selected_index=0,
+        on_change=on_tab_change,
+        destinations=[
+            ft.NavigationDestination(icon=ft.Icons.TOUCH_APP, label="Тапать"),
+            ft.NavigationDestination(icon=ft.Icons.MONETIZATION_ON, label="Майнинг"),
+            ft.NavigationDestination(icon=ft.Icons.CASINO, label="Бонусы"),
+        ]
     )
 
+    # --- ФОНОВЫЙ ПОТОК (ПАССИВНЫЙ ДОХОД И ЭНЕРГИЯ) ---
+    def auto_worker():
+        nonlocal balance, energy
+        while True:
+            time.sleep(1)
+            # Добавляем пассивный доход
+            if p_income > 0:
+                balance += p_income
+                page.client_storage.set("balance", balance)
+            # Восстанавливаем энергию (+3 в секунду)
+            if energy < max_energy:
+                energy = min(max_energy, energy + 3)
+                page.client_storage.set("energy", energy)
+            
+            # Безопасное обновление интерфейса на ходу
+            try:
+                balance_text.value = f"🪙 {balance:,} MOНET"
+                energy_bar.value = energy / max_energy
+                energy_text.value = f"🔋 Энергия: {energy}/{max_energy}"
+                page.update()
+            except:
+                break # Если приложение закрыли, останавливаем поток
+
+    # Запускаем фонового робота
+    threading.Thread(target=auto_worker, daemon=True).start()
+
+    # --- СБОРКА ВСЕГО ИНТЕРФЕЙСА ---
     page.add(
-        ft.Text("Моё первое приложение! 🚀", size=24),
-        score_text,
-        ft.Container(height=20),
-        click_button
-    )
-
-ft.app(target=main)
+        ft.Container(
+            content=ft.Column([
+                ft.Container(content=balance_text, alignment=ft.alignment.center),
+                income_text,
+                ft.Divider(color="amber", height=2),
+                ft.Container(content=main_container, height=320, alignment=ft.alignment.center),
+                nav_bar
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=10,
+            bgcolor="#111111",
+            border_radius=15,
+            width=360,
+            border=ft.Border(top=ft.BorderSide(1, "#333333"),
+            bottom=ft.BorderSide(1, "#333333"),
+            left=ft.BorderSide(1, "#333333"),
+             right=ft.BorderSide(1, "#333333")
+            )
+            )
+            )
+    
+             ft.app(target=main)
+    
