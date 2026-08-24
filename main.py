@@ -15,13 +15,13 @@ def main(page: ft.Page):
         score_text.value = f"Очки: {score}"
         page.update()
 
+    # Исправленная кнопка для Android
     click_button = ft.ElevatedButton(
-        text="ТАПАЙ МЕНЯ! 🪙",
+        content=ft.Text("ТАПАЙ МЕНЯ! 🪙", size=20, weight=ft.FontWeight.BOLD),
         on_click=button_click,
         style=ft.ButtonStyle(
             shape=ft.CircleBorder(),
-            padding=30,
-            text_style=ft.TextStyle(size=20, weight=ft.FontWeight.BOLD)
+            padding=30
         )
     )
 
