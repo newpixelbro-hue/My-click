@@ -12,8 +12,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Используем официальный, уже рабочий Android SDK от GitHub
-      - name: Set up JDK 17 & Android SDK
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -28,11 +27,19 @@ jobs:
       - name: Initialize and Configure Buildozer
         run: |
           buildozer init
-          # Настраиваем Buildozer на использование системного Android SDK гитхаба
+          # Настраиваем Flet и фиксируем стабильную версию инструментов сборки
           sed -i 's/requirements = python3,kivy/requirements = python3,flet/g' buildozer.spec
-          sed -i "s|# android.sdk_path =|android.sdk_path = $ANDROID_HOME|g" buildozer.spec
-          sed -i "s|# android.ndk_path =|android.ndk_path = $ANDROID_NDK_LATEST_HOME|g" buildozer.spec
           sed -i 's/package.domain = org.test/package.domain = org.pixel/g' buildozer.spec
+          # Принудительно меняем в конфиге версию build-tools на стабильную 35.0.0
+          sed -i 's/# android.build_tools_version =/android.build_tools_version = 35.0.0/g' buildozer.spec
+
+      - name: Auto Accept Android Licenses
+        run: |
+          # Этот трюк автоматически соглашается со ВСЕМИ лицензиями Google SDK
+          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
+          echo -e "\n893342713f31cd1aa478192ee001d268b4a167b3\nd56f173416eac2efb25966b351a551f15808636a\n84831b9409646a918e30573bab4c9c91346d8ec1\n7c30a7415d4563d1746654e7b8e23b8bc81f41be\nb9633bc0f975E265697c186b4f1225398e40f892\nfa6c80f577134c6b45a169e42e4ba1310f16653a\n24333f1a63b682509dcc7818fb9cb397bc9059c0" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          echo -e "\n84831b9409646a918e30573bab4c9c91346d8ec1" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Build with Buildozer
         run: buildozer android debug
