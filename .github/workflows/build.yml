@@ -25,6 +25,13 @@ jobs:
           sed -i 's/requirements = python3,kivy/requirements = python3,flet/g' buildozer.spec
           sed -i 's/package.domain = org.test/package.domain = org.pixel/g' buildozer.spec
 
+      - name: Accept Android Licenses
+        run: |
+          # Автоматически принимаем все лицензии Google SDK
+          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
+          echo -e "\n893342713f31cd1aa478192ee001d268b4a167b3\nd56f173416eac2efb25966b351a551f15808636a\n84831b9409646a918e30573bab4c9c91346d8ec1\n7c30a7415d4563d1746654e7b8e23b8bc81f41be\nb9633bc0f975E265697c186b4f1225398e40f892\nfa6c80f577134c6b45a169e42e4ba1310f16653a\n24333f1a63b682509dcc7818fb9cb397bc9059c0" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          echo -e "\n84831b9409646a918e30573bab4c9c91346d8ec1" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+
       - name: Build with Buildozer
         run: buildozer android debug
 
