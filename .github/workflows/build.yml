@@ -27,10 +27,9 @@ jobs:
 
       - name: Build APK via Python-for-Android
         run: |
-          # Соглашаемся со всеми лицензиями Android SDK, который уже есть на сервере
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           
-          # Запускаем прямую сборку приложения без капризного Бульдозера
+          # Указываем современный Android 15 (API 35), чтобы он совпал с сервером
           p4a apk --private . \
             --package=org.pixel.clicker \
             --name="Pixel Clicker" \
@@ -38,6 +37,7 @@ jobs:
             --bootstrap=sdl2 \
             --requirements=python3,flet \
             --arch=arm64-v8a \
+            --android-api 35 \
             --release
 
       - name: Upload APK Artifact
