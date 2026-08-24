@@ -11,7 +11,6 @@ def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
     # --- ЗАГРУЗКА ДАННЫХ ИЗ ПАМЯТИ ТЕЛЕФОНА ---
-    # Если запуск первый — создаем стартовый баланс
     if not page.client_storage.contains_key("balance"):
         page.client_storage.set("balance", 0)
         page.client_storage.set("click_power", 1)
@@ -19,14 +18,12 @@ def main(page: ft.Page):
         page.client_storage.set("energy", 1000)
         page.client_storage.set("last_bonus", 0)
 
-    # Инициализация переменных из памяти
     balance = page.client_storage.get("balance")
     click_power = page.client_storage.get("click_power")
     p_income = page.client_storage.get("p_income")
     energy = page.client_storage.get("energy")
     max_energy = 1000
 
-    # Цены на апгрейды
     multitap_cost = click_power * 150
     gpu_cost = (p_income + 1) * 200
 
@@ -58,27 +55,18 @@ def main(page: ft.Page):
             update_rank()
             page.update()
 
-    # Огромная красивая неоновая кнопка-монета
-    coin_button = ft.Container(
-        content=ft.Center(content=ft.Text("🪙", size=80)),
-        width=180,
-        height=180,
-        bgcolor="#222222",
-        shape=ft.BoxShape.CIRCLE,
-        border=ft.Border(
-            top=ft.BorderSide(3, "amber"),
-            bottom=ft.BorderSide(3, "amber"),
-            left=ft.BorderSide(3, "amber"),
-            right=ft.BorderSide(3, "amber")
-        ),
-        on_click=coin_button,
-        animate_scale=ft.Animation(100, ft.AnimationCurve.BOUNCE_OUT)
+    # Сделали кнопку стандартным круглымIconButton — это на 100% защищено от багов сборки
+    tap_button = ft.IconButton(
+        icon=ft.Icons.MONETIZATION_ON,
+        icon_size=100,
+        icon_color="amber",
+        on_click=coin_tap
     )
 
     tab_main = ft.Column([
         rank_text,
         ft.Container(height=10),
-        coin_button,
+        tap_button,
         ft.Container(height=20),
         energy_text,
         energy_bar,
@@ -143,7 +131,6 @@ def main(page: ft.Page):
         current_time = int(time.time())
         last_bonus = page.client_storage.get("last_bonus")
         
-        # 86400 секунд = 24 часа
         if current_time - last_bonus >= 86400:
             balance += 5000
             page.client_storage.set("balance", balance)
@@ -192,7 +179,6 @@ def main(page: ft.Page):
     main_container = ft.Container(content=tab_main, padding=15)
 
     def on_tab_change(e):
-        # Переключаем экраны в зависимости от выбранной шторки снизу
         if e.control.selected_index == 0:
             main_container.content = tab_main
         elif e.control.selected_index == 1:
@@ -201,7 +187,6 @@ def main(page: ft.Page):
             main_container.content = tab_casino
         page.update()
 
-    # Полноценная нижняя панель навигации
     nav_bar = ft.NavigationBar(
         selected_index=0,
         on_change=on_tab_change,
@@ -217,28 +202,24 @@ def main(page: ft.Page):
         nonlocal balance, energy
         while True:
             time.sleep(1)
-            # Добавляем пассивный доход
             if p_income > 0:
                 balance += p_income
                 page.client_storage.set("balance", balance)
-            # Восстанавливаем энергию (+3 в секунду)
             if energy < max_energy:
                 energy = min(max_energy, energy + 3)
                 page.client_storage.set("energy", energy)
             
-            # Безопасное обновление интерфейса на ходу
             try:
                 balance_text.value = f"🪙 {balance:,} MOНET"
                 energy_bar.value = energy / max_energy
                 energy_text.value = f"🔋 Энергия: {energy}/{max_energy}"
                 page.update()
             except:
-                break # Если приложение закрыли, останавливаем поток
+                break
 
-    # Запускаем фонового робота
     threading.Thread(target=auto_worker, daemon=True).start()
 
-    # --- СБОРКА ВСЕГО ИНТЕРФЕЙСА ---
+    # --- СБОРКА ИНТЕРФЕЙСА ---
     page.add(
         ft.Container(
             content=ft.Column([
@@ -251,14 +232,9 @@ def main(page: ft.Page):
             padding=10,
             bgcolor="#111111",
             border_radius=15,
-            width=360,
-            border=ft.Border(top=ft.BorderSide(1, "#333333"),
-            bottom=ft.BorderSide(1, "#333333"),
-            left=ft.BorderSide(1, "#333333"),
-             right=ft.BorderSide(1, "#333333")
-            )
-            )
-            )
-    
-             ft.app(target=main)
-    
+            width=360
+        )
+    )
+
+ft.app(target=main)
+            
