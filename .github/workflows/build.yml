@@ -7,11 +7,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Фиксируем стабильную версию Python для самого сервера
+      # Переключаем сервер на стабильный 3.12
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -30,10 +30,10 @@ jobs:
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      # Заставляем flet принудительно собирать APK на стабильном Python 3.11, а не на сыром 3.14
+      # Собираем строго на поддерживаемой стабильной 3.12
       - name: Build Android APK
         run: |
-          yes | flet build apk --python-version 3.11
+          yes | flet build apk --python-version 3.12
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
